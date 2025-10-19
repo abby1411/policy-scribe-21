@@ -38,8 +38,19 @@ serve(async (req) => {
     const fileBuffer = await file.arrayBuffer();
     const fileContent = new TextDecoder().decode(fileBuffer);
 
-    // Simple text extraction (in production, use proper PDF/DOCX parsers)
-    let extractedText = fileContent;
+    // Clean text: remove null bytes and control characters that PostgreSQL can't handle
+    // This is a simple extraction - in production, use proper PDF/DOCX parsers
+    let extractedText = fileContent
+      .replace(/\u0000/g, '') // Remove null bytes
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove other control chars
+      .trim();
+    
+    // Ensure we have some text
+    if (!extractedText || extractedText.length < 10) {
+      throw new Error("Could not extract meaningful text from document. Please ensure the file contains readable text.");
+    }
+
+    console.log(`Extracted ${extractedText.length} characters of text`);
     
     // Chunk the text into smaller pieces for semantic search
     const chunkSize = 1000;
